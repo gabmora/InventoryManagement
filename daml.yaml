@@ -4,9 +4,15 @@
 sdk-version: 2.7.0-snapshot.20230331.11634.0.c20fc05d
 name: InventoryManagement
 source: daml
-init-script: Main:setup
+parties:
+  - Manufacturer
+  - Customer
+  - Supplier
+init-script: Setup:setup
 version: 0.0.1
 dependencies:
   - daml-prim
   - daml-stdlib
   - daml-script
+# sandbox-options: 
+#   - --wall-clock-time

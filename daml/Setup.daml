@@ -1,0 +1,39 @@
+module Setup where
+
+import Daml.Script
+import Inventory
+
+setup : Script ()
+setup = script do
+  -- Parties
+  manufacturer <- allocatePartyWithHint "Manufacturer" (PartyIdHint "Manufacturer")
+  customer <- allocatePartyWithHint "Customer" (PartyIdHint "Customer")
+  supplier <- allocatePartyWithHint "Supplier" (PartyIdHint "Supplier")
+
+  -- Create some Product contracts
+  pid1 <- submit manufacturer do
+    createCmd Product with
+      manufacturer
+      productId = "P123"
+      productName = "Widget"
+      quantity = 50
+      price = 100.0
+
+  pid2 <- submit manufacturer do
+    createCmd Product with
+      manufacturer
+      productId = "P456"
+      productName = "Gadget"
+      quantity = 30
+      price = 150.0
+
+  -- Create an Order contract
+  oid1 <- submit customer do
+    createCmd Order with
+      customer
+      supplier
+      orderId = "O789"
+      productsOrdered = ["P123", "P456"]
+      orderTotal = 300.0
+
+  return ()

@@ -1,0 +1,62 @@
+module Inventory where
+
+-- import Daml.Script 
+
+template Product
+  with
+    manufacturer: Party
+    productId: Text
+    productName: Text
+    quantity: Int
+    price: Decimal
+  where
+    signatory manufacturer
+    key (manufacturer,productId) : (Party, Text)
+    maintainer key._1 -- the manufacturer is the maintainer of the key
+    ensure quantity >= 0 
+
+    nonconsuming choice AddStock: Either Text (ContractId Product)
+      with
+        additionalQuantity: Int
+      controller manufacturer
+      do
+        if additionalQuantity > 0
+          then Right <$> create this with quantity = quantity + additionalQuantity
+          else return (Left "Quantity must be positive")
+
+    -- Non-consuming choice to update the product's price
+    nonconsuming choice UpdatePrice: Optional (ContractId Product)
+      with
+        newPrice: Decimal
+      controller manufacturer
+      do
+        if newPrice /= price
+          then Some <$> create this with price = newPrice
+          else return None
+
+
+template Order
+  with
+    customer: Party
+    supplier: Party
+    orderId: Text
+    productsOrdered: [Text] -- list of product IDs
+    orderTotal: Decimal
+  where
+    signatory customer
+    observer supplier
+
+    choice PlaceOrder: ContractId Order
+      with
+        productList: [Text]
+      controller customer
+      do
+        assertMsg "Order must contain at least one product" (not (null productList))
+        create this with productsOrdered = productList
+
+    choice CancelOrder: ContractId Order
+      controller customer
+      do
+        create this with orderTotal = 0.0
+
+
