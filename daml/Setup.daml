@@ -2,38 +2,65 @@ module Setup where
 
 import Daml.Script
 import Inventory
+import DA.Optional (fromSome)
 
 setup : Script ()
 setup = script do
-  -- Parties
-  manufacturer <- allocatePartyWithHint "Manufacturer" (PartyIdHint "Manufacturer")
-  customer <- allocatePartyWithHint "Customer" (PartyIdHint "Customer")
-  supplier <- allocatePartyWithHint "Supplier" (PartyIdHint "Supplier")
+  -- Allocate Parties
+  sephora <- allocateParty "Sephora"
+  ulta <- allocateParty "Ulta"
+  customer <- allocateParty "Customer"
 
-  -- Create some Product contracts
-  pid1 <- submit manufacturer do
+  -- Create initial Product contracts for Ulta
+  ultaProd1 <- submit ulta do
     createCmd Product with
-      manufacturer
-      productId = "P123"
-      productName = "Widget"
+      manufacturer = ulta
+      productId = "UltaP123"
+      productName = "Ulta Mascara"
       quantity = 50
       price = 100.0
 
-  pid2 <- submit manufacturer do
+  -- Create initial Product contracts for Sephora
+  sephoraProd1 <- submit sephora do
     createCmd Product with
-      manufacturer
-      productId = "P456"
-      productName = "Gadget"
+      manufacturer = sephora
+      productId = "SephoraP456"
+      productName = "Sephora Lip Kit"
       quantity = 30
       price = 150.0
 
-  -- Create an Order contract
+  -- Update price and stock for Ulta's product
+  maybeNewUltaProd1 <- submit ulta do 
+    exerciseCmd ultaProd1 UpdatePrice with newPrice = 75.0
+  let newUltaProd1 = fromSome maybeNewUltaProd1
+
+  _ <- submit ulta do 
+    exerciseCmd newUltaProd1 UpdateStock with stockChange = 75
+
+  -- Place an order for Ulta's product
   oid1 <- submit customer do
     createCmd Order with
       customer
-      supplier
-      orderId = "O789"
-      productsOrdered = ["P123", "P456"]
-      orderTotal = 300.0
+      manufacturer = ulta
+      orderId = "Order001"
+      productsOrdered = [("UltaP123", 2)]
+      orderTotal = 150.0  -- 2 Ulta Mascaras
+
+  -- Ulta accepts the order
+  _ <- submit ulta do
+    exerciseCmd oid1 AcceptOrder
+
+  -- Place an order for Sephora's product
+  oid2 <- submit customer do
+    createCmd Order with
+      customer
+      manufacturer = sephora
+      orderId = "Order002"
+      productsOrdered = [("SephoraP456", 1)]
+      orderTotal = 150.0  -- 1 Sephora Lip Kit
+
+  -- Sephora accepts the order
+  _ <- submit sephora do
+    exerciseCmd oid2 AcceptOrder
 
   return ()

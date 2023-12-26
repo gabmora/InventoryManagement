@@ -1,6 +1,6 @@
 module Inventory where
 
--- import Daml.Script 
+import DA.Foldable (forA_)
 
 template Product
   with
@@ -11,25 +11,26 @@ template Product
     price: Decimal
   where
     signatory manufacturer
-    key (manufacturer,productId) : (Party, Text)
+    key (manufacturer, productId) : (Party, Text)
     maintainer key._1 -- the manufacturer is the maintainer of the key
     ensure quantity >= 0 
 
-    nonconsuming choice AddStock: Either Text (ContractId Product)
+    choice UpdateStock: ContractId Product
       with
-        additionalQuantity: Int
+        stockChange: Int  -- Positive to add stock, negative to subtract
       controller manufacturer
       do
-        if additionalQuantity > 0
-          then Right <$> create this with quantity = quantity + additionalQuantity
-          else return (Left "Quantity must be positive")
+        let newQuantity = quantity + stockChange
+        assertMsg "Stock level cannot be negative" (newQuantity >= 0)
+        create this with quantity = newQuantity
 
-    -- Non-consuming choice to update the product's price
     nonconsuming choice UpdatePrice: Optional (ContractId Product)
       with
         newPrice: Decimal
       controller manufacturer
       do
+        archive self
+        -- create this with price = newPrice
         if newPrice /= price
           then Some <$> create this with price = newPrice
           else return None
@@ -38,25 +39,35 @@ template Product
 template Order
   with
     customer: Party
-    supplier: Party
+    manufacturer: Party
     orderId: Text
-    productsOrdered: [Text] -- list of product IDs
+    productsOrdered: [(Text, Int)] -- List of product IDs and quantity
     orderTotal: Decimal
   where
     signatory customer
-    observer supplier
+    observer manufacturer
 
     choice PlaceOrder: ContractId Order
-      with
-        productList: [Text]
       controller customer
       do
-        assertMsg "Order must contain at least one product" (not (null productList))
-        create this with productsOrdered = productList
+        -- Add validation logic here if necessary
+        create this with orderTotal = orderTotal
 
-    choice CancelOrder: ContractId Order
-      controller customer
+    choice AcceptOrder: ContractId Order
+      controller manufacturer
       do
-        create this with orderTotal = 0.0
+        -- Iterate over each ordered product and update its quantity
+        forA_ productsOrdered $ \(prodId, qty) -> do
+          let productKey = (manufacturer, prodId)
+          (productContractId, product) <- fetchByKey @Product productKey
+          assertMsg "Product does not belong to the manufacturer" (product.manufacturer == manufacturer)
+          archive productContractId
+          create Product with
+            manufacturer = manufacturer
+            productId = prodId
+            productName = product.productName
+            quantity = product.quantity - qty
+            price = product.price
+        create this with orderTotal = orderTotal
 
 
