@@ -47,13 +47,15 @@ template Order
     signatory customer
     observer manufacturer
 
+    ensure all (\(_, qty) -> qty > 0) productsOrdered  && orderTotal > 0.0  -- Ensure total order amount is positive
+
     choice PlaceOrder: ContractId Order
       controller customer
       do
-        -- Add validation logic here if necessary
         create this with orderTotal = orderTotal
 
-    choice AcceptOrder: ContractId Order
+
+    choice AcceptOrder: ()
       controller manufacturer
       do
         -- Iterate over each ordered product and update its quantity
@@ -68,6 +70,10 @@ template Order
             productName = product.productName
             quantity = product.quantity - qty
             price = product.price
-        create this with orderTotal = orderTotal
+        -- create this with orderTotal = orderTotal
 
+    nonconsuming choice CancelOrder: ()
+      controller customer
+      do
+        archive self 
 

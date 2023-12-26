@@ -59,8 +59,47 @@ setup = script do
       productsOrdered = [("SephoraP456", 1)]
       orderTotal = 150.0  -- 1 Sephora Lip Kit
 
-  -- Sephora accepts the order
   _ <- submit sephora do
     exerciseCmd oid2 AcceptOrder
+
+  oid3 <- submit customer do
+    createCmd Order with
+      customer
+      manufacturer = sephora
+      orderId = "Order003"
+      productsOrdered = [("SephoraP456", 1)]
+      orderTotal = 150.0  -- 1 Sephora Lip Kit
+
+
+--   _ <- submit sephora do 
+--     exerciseCmd oid3 AcceptOrder
+  _ <- submit customer do 
+    exerciseCmd oid3 CancelOrder
+
+
+  -- SubmitMustFail: 
+  --Customer tries to accept their own order
+  submitMustFail customer do
+    exerciseCmd oid1 AcceptOrder
+
+  --Sephora tries to accept Ulta's order
+  submitMustFail sephora do
+    exerciseCmd oid1 AcceptOrder
+
+  --Attempting to overdraw stock
+--   _ <- submit ulta do 
+--   exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
+
+--   submitMustFail ulta do
+--   exerciseCmd oid1 AcceptOrder
+
+--Placeing an order with negative quantity 
+  submitMustFail customer do
+    createCmd Order with
+        customer
+        manufacturer = ulta
+        orderId = "InvalidOrder"
+        productsOrdered = [("UltaP123", -1)]
+        orderTotal = -100.0
 
   return ()
