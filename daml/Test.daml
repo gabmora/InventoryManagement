@@ -1,0 +1,106 @@
+module Test where 
+
+import Daml.Script
+
+import Inventory
+import DA.Optional (fromSome)
+
+setup : Script ()
+setup = script do
+  -- Allocate Parties
+  sephora <- allocateParty "Sephora"
+  ulta <- allocateParty "Ulta"
+  customer <- allocateParty "Customer"
+
+  -- Create initial Product contracts for Ulta
+  ultaProd1 <- submit ulta do
+    createCmd Product with
+      manufacturer = ulta
+      productId = "UltaP123"
+      productName = "Ulta Mascara"
+      quantity = 50
+      price = 100.0
+
+  -- Create initial Product contracts for Sephora
+  sephoraProd1 <- submit sephora do
+    createCmd Product with
+      manufacturer = sephora
+      productId = "SephoraP456"
+      productName = "Sephora Lip Kit"
+      quantity = 30
+      price = 150.0
+
+  -- Update price and stock for Ulta's product
+  maybeNewUltaProd1 <- submit ulta do 
+    exerciseCmd ultaProd1 UpdatePrice with newPrice = 75.0
+  let newUltaProd1 = fromSome maybeNewUltaProd1
+
+  _ <- submit ulta do 
+    exerciseCmd newUltaProd1 UpdateStock with stockChange = 75
+
+  -- Place an order for Ulta's product
+  oid1 <- submit customer do
+    createCmd Order with
+      customer
+      manufacturer = ulta
+      orderId = "Order001"
+      productsOrdered = [("UltaP123", 2)]
+      orderTotal = 150.0  -- 2 Ulta Mascaras
+
+  -- Ulta accepts the order
+  _ <- submit ulta do
+    exerciseCmd oid1 AcceptOrder
+
+  -- Place an order for Sephora's product
+  oid2 <- submit customer do
+    createCmd Order with
+      customer
+      manufacturer = sephora
+      orderId = "Order002"
+      productsOrdered = [("SephoraP456", 1)]
+      orderTotal = 150.0  -- 1 Sephora Lip Kit
+
+  _ <- submit sephora do
+    exerciseCmd oid2 AcceptOrder
+
+  oid3 <- submit customer do
+    createCmd Order with
+      customer
+      manufacturer = sephora
+      orderId = "Order003"
+      productsOrdered = [("SephoraP456", 1)]
+      orderTotal = 150.0  -- 1 Sephora Lip Kit
+
+
+--   _ <- submit sephora do 
+--     exerciseCmd oid3 AcceptOrder
+  _ <- submit customer do 
+    exerciseCmd oid3 CancelOrder
+
+
+  -- SubmitMustFail: 
+  --Customer tries to accept their own order
+  submitMustFail customer do
+    exerciseCmd oid1 AcceptOrder
+
+  --Sephora tries to accept Ulta's order
+  submitMustFail sephora do
+    exerciseCmd oid1 AcceptOrder
+
+  --Attempting to overdraw stock
+--   _ <- submit ulta do 
+--   exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
+
+--   submitMustFail ulta do
+--   exerciseCmd oid1 AcceptOrder
+
+--Placeing an order with negative quantity 
+  submitMustFail customer do
+    createCmd Order with
+        customer
+        manufacturer = ulta
+        orderId = "InvalidOrder"
+        productsOrdered = [("UltaP123", -1)]
+        orderTotal = -100.0
+
+  return ()
