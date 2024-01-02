@@ -88,8 +88,8 @@ setup = script do
     exerciseCmd oid1 AcceptOrder
 
   --Attempting to overdraw stock
---   _ <- submit ulta do 
---   exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
+  -- _ <- submit ulta do 
+  -- exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
 
 --   submitMustFail ulta do
 --   exerciseCmd oid1 AcceptOrder

@@ -41,7 +41,7 @@ template Order
     customer: Party
     manufacturer: Party
     orderId: Text
-    productsOrdered: [(Text, Int)] -- List of product IDs and quantity
+    productsOrdered: [(Text, Int)] 
     orderTotal: Decimal
   where
     signatory customer
