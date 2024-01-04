@@ -15,9 +15,9 @@ testWorkFlow = script do
 
 -- ulta and sephora create some product contracts
   ultaProd1 <- submit ultaSupplier do
-    createCmd Inventory.Product with
-      -- manufacturer = manufacturer
+    createCmd Product with
       supplier = ultaSupplier
+      customer
       productInfo = ProductInfo with
         productId = "UltaP123"
         productName = "Ulta Mascara"
@@ -26,8 +26,8 @@ testWorkFlow = script do
 
   sephoraProd1 <- submit sephoraSupplier do
     createCmd Product with
-      -- manufacturer = manufacturer
       supplier = sephoraSupplier
+      customer
       productInfo = ProductInfo with 
         productId = "SephoraP456"
         productName = "Sephora Lip Kit"
@@ -104,9 +104,10 @@ testWorkFlow = script do
 
   --Test that an order cannot be accepted if it requires more stock than is available.
   pid1 <- submit ultaSupplier do
-    createCmd Inventory.Product with
+    createCmd Product with
       -- manufacturer = manufacturer
       supplier = ultaSupplier
+      customer 
       productInfo = ProductInfo with 
         productId = "UltaP345"
         productName = "Ulta Primer"

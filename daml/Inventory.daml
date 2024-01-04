@@ -14,10 +14,11 @@ template Product
   with
     -- manufacturer: Party
     supplier: Party
+    customer: Party
     productInfo: ProductInfo
   where
     signatory supplier
-    -- observer supplier
+    observer customer
     key (supplier, productInfo.productId) : (Party, Text)
     maintainer key._1 -- the supplier is the maintainer of the key
     ensure productInfo.quantity >= 0 
@@ -36,11 +37,14 @@ template Product
         newPrice: Decimal
       controller supplier
       do
-        archive self
-        -- create this with price = newPrice
-        if newPrice /= productInfo.price
-          then Some <$> create this with productInfo.price = newPrice
-          else return None
+        if newPrice >= 0.0
+          then do
+            archive self
+            if newPrice /= productInfo.price
+              then Some <$> create this with productInfo.price = newPrice
+              else return None
+        else 
+          error "New price must be positive"
 
 
 
@@ -60,8 +64,7 @@ template Order
     choice PlaceOrder: ContractId Order
       controller customer
       do
-        -- totalPrice <- calculateTotalOrderPrice productsOrdered
-        create this with 
+       create this with 
           customer
           supplier
           orderId
