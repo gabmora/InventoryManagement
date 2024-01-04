@@ -1,11 +1,6 @@
 sdk-version: 2.7.0-snapshot.20230331.11634.0.c20fc05d
 name: InventoryManagement
 source: daml
-parties:
-  - Manufacturer
-  - Customer
-  - Sephora
-  - Ulta
 version: 0.0.1
 dependencies:
   - daml-prim

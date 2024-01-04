@@ -4,21 +4,23 @@ import DA.Foldable (forA_)
 
 template Product
   with
-    manufacturer: Party
+    -- manufacturer: Party
+    supplier: Party
     productId: Text
     productName: Text
     quantity: Int
     price: Decimal
   where
-    signatory manufacturer
-    key (manufacturer, productId) : (Party, Text)
-    maintainer key._1 -- the manufacturer is the maintainer of the key
+    signatory supplier
+    -- observer supplier
+    key (supplier, productId) : (Party, Text)
+    maintainer key._1 -- the supplier is the maintainer of the key
     ensure quantity >= 0 
 
     choice UpdateStock: ContractId Product
       with
         stockChange: Int  -- Positive to add stock, negative to subtract
-      controller manufacturer
+      controller supplier
       do
         let newQuantity = quantity + stockChange
         assertMsg "Stock level cannot be negative" (newQuantity >= 0)
@@ -27,7 +29,7 @@ template Product
     nonconsuming choice UpdatePrice: Optional (ContractId Product)
       with
         newPrice: Decimal
-      controller manufacturer
+      controller supplier
       do
         archive self
         -- create this with price = newPrice
@@ -36,41 +38,50 @@ template Product
           else return None
 
 
+
 template Order
   with
     customer: Party
-    manufacturer: Party
+    supplier: Party
     orderId: Text
     productsOrdered: [(Text, Int)] 
-    orderTotal: Decimal
+    -- orderTotal: Decimal
   where
     signatory customer
-    observer manufacturer
+    observer supplier
 
-    ensure all (\(_, qty) -> qty > 0) productsOrdered  && orderTotal > 0.0  -- Ensure total order amount is positive
+    ensure all (\(_, qty) -> qty > 0) productsOrdered  -- Ensure total order amount is positive
 
     choice PlaceOrder: ContractId Order
       controller customer
       do
-        create this with orderTotal = orderTotal
-
+        -- totalPrice <- calculateTotalOrderPrice productsOrdered
+        create this with 
+          customer
+          supplier
+          orderId
+          productsOrdered
 
     choice AcceptOrder: ()
-      controller manufacturer
+      controller supplier
       do
         -- Iterate over each ordered product and update its quantity
         forA_ productsOrdered $ \(prodId, qty) -> do
-          let productKey = (manufacturer, prodId)
+          let productKey = (supplier, prodId) : (Party, Text)
           (productContractId, product) <- fetchByKey @Product productKey
-          assertMsg "Product does not belong to the manufacturer" (product.manufacturer == manufacturer)
-          archive productContractId
-          create Product with
-            manufacturer = manufacturer
-            productId = prodId
-            productName = product.productName
-            quantity = product.quantity - qty
-            price = product.price
-        -- create this with orderTotal = orderTotal
+          if product.quantity >= qty
+            then do
+              let newQuanity =  product.quantity - qty
+              exercise productContractId UpdateStock with stockChange = -qty
+              create Product with
+                -- manufacturer = product.manufacturer
+                supplier = supplier
+                productId = prodId
+                productName = product.productName
+                quantity = product.quantity - qty
+                price = product.price
+            else
+              error "Insufficient stock for product"
 
     nonconsuming choice CancelOrder: ()
       controller customer
