@@ -7,11 +7,13 @@ import DA.Optional (fromSome)
 
 testWorkFlow : Script ()
 testWorkFlow = script do
-  manufacturer <- allocateParty "Manufacturer"
+  -- manufacturer <- allocateParty "Manufacturer"
   ultaSupplier <- allocateParty "UltaSupplier"
   sephoraSupplier <- allocateParty "SephoraSupplier"
   customer <- allocateParty "Customer"
 
+
+-- ulta and sephora create some product contracts
   ultaProd1 <- submit ultaSupplier do
     createCmd Inventory.Product with
       -- manufacturer = manufacturer
@@ -30,20 +32,22 @@ testWorkFlow = script do
       quantity = 30
       price = 150.0
 
+--suppliers can change price and stock 
   maybeNewUltaProd1 <- submit ultaSupplier do 
     exerciseCmd ultaProd1 UpdatePrice with newPrice = 75.0
   let newUltaProd1 = fromSome maybeNewUltaProd1
 
-  _ <- submitMulti [manufacturer, ultaSupplier][ultaSupplier] do 
+  _ <- submit ultaSupplier do 
     exerciseCmd newUltaProd1 UpdateStock with stockChange = 75
 
+--customer creates order contract request
   oid1 <- submit customer do
     createCmd Order with
       customer
       supplier = ultaSupplier
       orderId = "Order001"
       productsOrdered = [("UltaP123", 2)]
-
+--supplier accept order 
   _ <- submit ultaSupplier do
     exerciseCmd oid1 AcceptOrder
 
@@ -65,10 +69,10 @@ testWorkFlow = script do
       productsOrdered = [("SephoraP456", 1)]
 
   _ <- submit customer do 
-    exerciseCmd oid3 CancelOrder
+    exerciseCmd oid3 CancelOrder -- customer cancels order before supplier accepts it
 
 -- submitMustFail - UnHappy Paths
---customer acceoting their own order
+--customer accepting their own order
   submitMustFail customer do
     exerciseCmd oid1 AcceptOrder
 
@@ -101,14 +105,29 @@ testWorkFlow = script do
     createCmd Inventory.Product with
       -- manufacturer = manufacturer
       supplier = ultaSupplier
-      productId = "UltaP234"
+      productId = "UltaP345"
       productName = "Ulta Primer"
       quantity = 50
       price = 100.0
   _ <- submit ultaSupplier do 
     exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
+  oid4 <- submit customer do 
+    createCmd Order with 
+      customer
+      supplier = ultaSupplier
+      orderId = "Order004"
+      productsOrdered = [("UltaP345", 1)]
+  _ <- submitMustFail ultaSupplier do 
+    exerciseCmd oid4 AcceptOrder
+    --Test where Ulta supplier attempts to accept the Sephora order
+  oid5 <- submit customer do
+    createCmd Order with
+      customer
+      supplier = sephoraSupplier
+      orderId = "Order005" 
+      productsOrdered = [("SephoraP456", 2)]  
 
--- Attempting to accept an order that would overdraw the stock
   submitMustFail ultaSupplier do
-    exerciseCmd oid1 AcceptOrder
+    exerciseCmd oid5 AcceptOrder
+
   return ()
