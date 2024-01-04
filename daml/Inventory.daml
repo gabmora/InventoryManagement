@@ -67,21 +67,16 @@ template Order
       do
         -- Iterate over each ordered product and update its quantity
         forA_ productsOrdered $ \(prodId, qty) -> do
-          let productKey = (supplier, prodId) : (Party, Text)
+          let productKey = (supplier, prodId)
           (productContractId, product) <- fetchByKey @Product productKey
-          if product.quantity >= qty
-            then do
-              let newQuanity =  product.quantity - qty
-              exercise productContractId UpdateStock with stockChange = -qty
-              create Product with
-                -- manufacturer = product.manufacturer
-                supplier = supplier
-                productId = prodId
-                productName = product.productName
-                quantity = product.quantity - qty
-                price = product.price
-            else
-              error "Insufficient stock for product"
+          assertMsg "Product does not belong to the manufacturer" (product.supplier == supplier)
+          archive productContractId
+          create Product with
+            supplier = supplier
+            productId = prodId
+            productName = product.productName
+            quantity = product.quantity - qty
+            price = product.price
 
     nonconsuming choice CancelOrder: ()
       controller customer

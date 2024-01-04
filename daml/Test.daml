@@ -44,8 +44,8 @@ testWorkFlow = script do
       orderId = "Order001"
       productsOrdered = [("UltaP123", 2)]
 
-  -- _ <- submit ultaSupplier do
-  --   exerciseCmd oid1 AcceptOrder
+  _ <- submit ultaSupplier do
+    exerciseCmd oid1 AcceptOrder
 
   oid2 <- submit customer do
     createCmd Order with
@@ -54,8 +54,8 @@ testWorkFlow = script do
       orderId = "Order002"
       productsOrdered = [("SephoraP456", 1)]
 
-  -- _ <- submit sephoraSupplier do
-  --   exerciseCmd oid2 AcceptOrder
+  _ <- submit sephoraSupplier do
+    exerciseCmd oid2 AcceptOrder
 
   oid3 <- submit customer do
     createCmd Order with
@@ -67,12 +67,16 @@ testWorkFlow = script do
   _ <- submit customer do 
     exerciseCmd oid3 CancelOrder
 
+-- submitMustFail - UnHappy Paths
+--customer acceoting their own order
   submitMustFail customer do
     exerciseCmd oid1 AcceptOrder
 
-  submitMustFail manufacturer do
-    exerciseCmd oid1 AcceptOrder
+-- customer attempts to cancel an order after it has been accepted
+  submitMustFail customer do
+    exerciseCmd oid1 CancelOrder
 
+--customer attempts to order negative amount 
   submitMustFail customer do
     createCmd Order with
       customer
@@ -80,4 +84,31 @@ testWorkFlow = script do
       orderId = "InvalidOrder"
       productsOrdered = [("UltaP123", -1)]
 
+-- attempting to update product price to a negative value
+  submitMustFail ultaSupplier do
+    exerciseCmd newUltaProd1 UpdatePrice with newPrice = -10.0
+
+-- attempting to reduce the product stock to a negative level
+  submitMustFail ultaSupplier do
+    exerciseCmd newUltaProd1 UpdateStock with stockChange = -200
+
+-- Sephora attempts to accept an order that has been cancelled
+  submitMustFail sephoraSupplier do
+    exerciseCmd oid2 AcceptOrder
+
+  --Test that an order cannot be accepted if it requires more stock than is available.
+  pid1 <- submit ultaSupplier do
+    createCmd Inventory.Product with
+      -- manufacturer = manufacturer
+      supplier = ultaSupplier
+      productId = "UltaP234"
+      productName = "Ulta Primer"
+      quantity = 50
+      price = 100.0
+  _ <- submit ultaSupplier do 
+    exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
+
+-- Attempting to accept an order that would overdraw the stock
+  submitMustFail ultaSupplier do
+    exerciseCmd oid1 AcceptOrder
   return ()
