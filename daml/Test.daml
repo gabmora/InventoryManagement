@@ -18,19 +18,21 @@ testWorkFlow = script do
     createCmd Inventory.Product with
       -- manufacturer = manufacturer
       supplier = ultaSupplier
-      productId = "UltaP123"
-      productName = "Ulta Mascara"
-      quantity = 50
-      price = 100.0
+      productInfo = ProductInfo with
+        productId = "UltaP123"
+        productName = "Ulta Mascara"
+        quantity = 50
+        price = 100.0
 
   sephoraProd1 <- submit sephoraSupplier do
     createCmd Product with
       -- manufacturer = manufacturer
       supplier = sephoraSupplier
-      productId = "SephoraP456"
-      productName = "Sephora Lip Kit"
-      quantity = 30
-      price = 150.0
+      productInfo = ProductInfo with 
+        productId = "SephoraP456"
+        productName = "Sephora Lip Kit"
+        quantity = 30
+        price = 150.0
 
 --suppliers can change price and stock 
   maybeNewUltaProd1 <- submit ultaSupplier do 
@@ -105,10 +107,11 @@ testWorkFlow = script do
     createCmd Inventory.Product with
       -- manufacturer = manufacturer
       supplier = ultaSupplier
-      productId = "UltaP345"
-      productName = "Ulta Primer"
-      quantity = 50
-      price = 100.0
+      productInfo = ProductInfo with 
+        productId = "UltaP345"
+        productName = "Ulta Primer"
+        quantity = 50
+        price = 100.0
   _ <- submit ultaSupplier do 
     exerciseCmd pid1 UpdateStock with stockChange = -50  -- Reducing stock
   oid4 <- submit customer do 

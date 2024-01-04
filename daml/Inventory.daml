@@ -2,29 +2,34 @@ module Inventory where
 
 import DA.Foldable (forA_)
 
-template Product
+data ProductInfo = ProductInfo
   with
-    -- manufacturer: Party
-    supplier: Party
     productId: Text
     productName: Text
     quantity: Int
     price: Decimal
+  deriving (Eq, Show)
+
+template Product
+  with
+    -- manufacturer: Party
+    supplier: Party
+    productInfo: ProductInfo
   where
     signatory supplier
     -- observer supplier
-    key (supplier, productId) : (Party, Text)
+    key (supplier, productInfo.productId) : (Party, Text)
     maintainer key._1 -- the supplier is the maintainer of the key
-    ensure quantity >= 0 
+    ensure productInfo.quantity >= 0 
 
     choice UpdateStock: ContractId Product
       with
         stockChange: Int  -- Positive to add stock, negative to subtract
       controller supplier
       do
-        let newQuantity = quantity + stockChange
+        let newQuantity = productInfo.quantity + stockChange
         assertMsg "Stock level cannot be negative" (newQuantity >= 0)
-        create this with quantity = newQuantity
+        create this with productInfo.quantity = newQuantity
 
     nonconsuming choice UpdatePrice: Optional (ContractId Product)
       with
@@ -33,8 +38,8 @@ template Product
       do
         archive self
         -- create this with price = newPrice
-        if newPrice /= price
-          then Some <$> create this with price = newPrice
+        if newPrice /= productInfo.price
+          then Some <$> create this with productInfo.price = newPrice
           else return None
 
 
@@ -69,9 +74,9 @@ template Order
         forA_ productsOrdered $ \(prodId, qty) -> do
           let productKey = (supplier, prodId) : (Party, Text)
           (productContractId, product) <- fetchByKey @Product productKey
-          if product.quantity >= qty
+          if product.productInfo.quantity >= qty
             then do
-              let newQuantity = product.quantity - qty
+              let newQuantity = product.productInfo.quantity - qty
               exercise productContractId UpdateStock with stockChange = -qty
               return ()
             else
